@@ -19,7 +19,7 @@ def mean_absolute_percentage_error(y_true: pd.Series, y_pred: pd.Series) -> floa
 def regression_report(y_true: pd.Series, y_pred: pd.Series) -> dict:
     """Return MAE, RMSE, and MAPE metrics."""
     mae = mean_absolute_error(y_true, y_pred)
-    rmse = mean_squared_error(y_true, y_pred, squared=False)
+    rmse = np.sqrt(mean_squared_error(y_true, y_pred))
     mape = mean_absolute_percentage_error(y_true, y_pred)
     return {"MAE": mae, "RMSE": rmse, "MAPE": mape}
 
@@ -30,7 +30,11 @@ def evaluate_forecast_frame(forecast_df: pd.DataFrame) -> dict:
     missing = required - set(forecast_df.columns)
     if missing:
         raise ValueError(f"Missing required columns: {missing}")
-    return regression_report(forecast_df["y"], forecast_df["yhat"])
+    filtered = forecast_df.dropna(subset=["y", "yhat"])
+    if filtered.empty:
+        raise ValueError("No overlapping y and yhat rows to evaluate.")
+    return regression_report(filtered["y"], filtered["yhat"])
+
 
 
 def summarize_cross_validation(cv_frame: pd.DataFrame) -> pd.DataFrame:

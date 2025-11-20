@@ -7,8 +7,8 @@ from typing import Optional
 import matplotlib.pyplot as plt
 import pandas as pd
 
-FORECAST_PLOT = Path("result/forecast_plot.png")
-COMPONENT_PLOT = Path("result/component_trends.png")
+FORECAST_PLOT = Path("../result/forecast_plot.png")
+COMPONENT_PLOT = Path("../result/component_trends.png")
 
 
 def plot_forecast(
@@ -16,6 +16,13 @@ def plot_forecast(
     actual_df: Optional[pd.DataFrame] = None,
     output_path: Path = FORECAST_PLOT,
 ) -> Path:
+    # src/visualize_results.py
+    forecast_df = forecast_df.copy()
+    forecast_df["ds"] = pd.to_datetime(forecast_df["ds"])
+    if actual_df is not None:
+        actual_df = actual_df.copy()
+        actual_df["ds"] = pd.to_datetime(actual_df["ds"])
+
     """Plot the forecast curve with optional ground truth."""
     fig, ax = plt.subplots(figsize=(10, 5))
     if actual_df is not None:
@@ -43,6 +50,9 @@ def plot_forecast(
 
 def plot_components(forecast_df: pd.DataFrame, output_path: Path = COMPONENT_PLOT) -> Path:
     """Plot trend and seasonality components if they exist."""
+    # src/visualize_results.py
+    forecast_df = forecast_df.copy()
+    forecast_df["ds"] = pd.to_datetime(forecast_df["ds"])
     components = ["trend", "weekly", "yearly"]
     valid_components = [c for c in components if c in forecast_df.columns]
     fig, axes = plt.subplots(len(valid_components), 1, figsize=(10, 8), sharex=True)

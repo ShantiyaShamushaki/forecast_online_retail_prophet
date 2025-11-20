@@ -7,8 +7,9 @@ from typing import Any, Dict, Tuple
 import joblib
 import pandas as pd
 from prophet import Prophet
+from .prophet_config import BEST_CONFIG_PATH, load_prophet_config
 
-MODEL_PATH = Path("result/model.pkl")
+MODEL_PATH = Path("../result/model.pkl")
 
 DEFAULT_MODEL_CONFIG: Dict[str, Any] = {
     "seasonality_mode": "additive",
@@ -18,6 +19,46 @@ DEFAULT_MODEL_CONFIG: Dict[str, Any] = {
     "changepoint_prior_scale": 0.05,
 }
 
+DEFAULT_PROPHET_ARGS: dict[str, Any] = {
+    "growth": "linear",
+    "seasonality_mode": "additive",
+    "weekly_seasonality": True,
+    "daily_seasonality": False,
+}
+
+def _build_prophet(
+    model_config: dict[str, Any] | None = None,
+    config_path: Path | None = BEST_CONFIG_PATH,
+) -> Prophet:
+    resolved = DEFAULT_PROPHET_ARGS.copy()
+    persisted = load_prophet_config(config_path) if config_path else None
+    if persisted:
+        resolved.update(persisted)
+    if model_config:
+        resolved.update(model_config)
+    return Prophet(**resolved)
+
+def _coerce_prophet_frame(df: pd.DataFrame) -> pd.DataFrame:
+    """Ensure Prophet's ds/y columns exist, renaming common aliases."""
+    rename_map = {}
+    if "ds" not in df.columns:
+        for alias in ("InvoiceDate", "invoice_date", "date"):
+            if alias in df.columns:
+                rename_map[alias] = "ds"
+                break
+        else:
+            raise KeyError("Input dataframe must contain a 'ds' column.")
+    if "y" not in df.columns:
+        for alias in ("Sales", "sales", "value"):
+            if alias in df.columns:
+                rename_map[alias] = "y"
+                break
+        else:
+            raise KeyError("Input dataframe must contain a 'y' column.")
+    coerced = df.rename(columns=rename_map).copy()
+    coerced["ds"] = pd.to_datetime(coerced["ds"], errors="coerce")
+    coerced["y"] = pd.to_numeric(coerced["y"], errors="coerce")
+    return coerced.dropna(subset=["ds", "y"])
 
 def prepare_training_frame(df: pd.DataFrame) -> pd.DataFrame:
     """Return a dataframe containing ds and y columns sorted by date."""
@@ -65,12 +106,14 @@ def save_model(model: Prophet, path: Path = MODEL_PATH) -> Path:
 
 
 def run_pipeline(
-    train_df: pd.DataFrame,
-    config: Dict[str, Any] | None = None,
+    df: pd.DataFrame,
     periods: int = 90,
     freq: str = "D",
-) -> Tuple[Prophet, pd.DataFrame]:
-    """Fit a model and return both the model and forecast dataframe."""
-    model = fit_model(train_df, config)
-    forecast = make_forecast(model, periods=periods, freq=freq)
+    model_config: dict[str, Any] | None = None,
+    config_path: Path | None = BEST_CONFIG_PATH,) -> tuple[Prophet, pd.DataFrame]:
+    prepared_df = _coerce_prophet_frame(df)
+    model = _build_prophet(model_config=model_config, config_path=config_path)
+    model.fit(prepared_df)
+    future = model.make_future_dataframe(periods=periods, freq=freq)
+    forecast = model.predict(future)
     return model, forecast

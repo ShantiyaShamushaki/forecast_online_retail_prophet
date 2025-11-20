@@ -13,6 +13,10 @@ MONTHLY_OUTPUT = Path("../data/processed/sales_monthly.csv")
 TIMESTAMP_COLUMN = "InvoiceDate"
 VALUE_COLUMN = "Sales"
 
+FREQ_ALIASES = {
+    "M": "ME",   # month-end -> month-end explicit
+    "Q": "QE",   # quarter-end -> quarter-end explicit
+}
 
 def load_raw_transactions(path: Path = RAW_DATA) -> pd.DataFrame:
     """Load the raw dataset and parse invoice timestamps."""
@@ -31,16 +35,23 @@ def clean_transactions(df: pd.DataFrame) -> pd.DataFrame:
     return cleaned
 
 
-def aggregate_sales(df: pd.DataFrame, freq: Literal["D", "M"] = "D") -> pd.DataFrame:
-    """Aggregate sales using the provided pandas frequency string."""
-    aggregated = (
+def _normalize_freq(freq: str) -> str:
+    if not freq:
+        return freq
+    return FREQ_ALIASES.get(freq.upper(), freq)
+
+def aggregate_sales(df: pd.DataFrame, freq: str = "D") -> pd.DataFrame:
+    if df.empty:
+        raise ValueError("Clean dataframe is empty.")
+    normalized_freq = _normalize_freq(freq)
+    return (
         df.set_index(TIMESTAMP_COLUMN)
-        .resample(freq)[VALUE_COLUMN]
+        .sort_index()
+        .resample(normalized_freq)[VALUE_COLUMN]
         .sum()
         .reset_index()
+        .rename(columns={TIMESTAMP_COLUMN: "ds", VALUE_COLUMN: "y"})
     )
-    aggregated.rename(columns={TIMESTAMP_COLUMN: "ds", VALUE_COLUMN: "y"}, inplace=True)
-    return aggregated
 
 
 def save_aggregated_sales(df: pd.DataFrame, freq: Literal["D", "M"] = "D") -> Path:
