@@ -3,12 +3,14 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Literal
+from .utils import save_dataframe
 
 import pandas as pd
 
 RAW_DATA = Path("../data/raw/online_retail_II.csv")
 DAILY_OUTPUT = Path("../data/processed/sales_daily.csv")
 MONTHLY_OUTPUT = Path("../data/processed/sales_monthly.csv")
+
 
 TIMESTAMP_COLUMN = "InvoiceDate"
 VALUE_COLUMN = "Sales"
@@ -57,8 +59,7 @@ def aggregate_sales(df: pd.DataFrame, freq: str = "D") -> pd.DataFrame:
 def save_aggregated_sales(df: pd.DataFrame, freq: Literal["D", "M"] = "D") -> Path:
     """Save aggregated sales to the processed folder."""
     output_path = DAILY_OUTPUT if freq == "D" else MONTHLY_OUTPUT
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(output_path, index=False)
+    save_dataframe(df, output_path)
     return output_path
 
 
