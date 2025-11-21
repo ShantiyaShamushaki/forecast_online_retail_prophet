@@ -35,13 +35,3 @@ def evaluate_forecast_frame(forecast_df: pd.DataFrame) -> dict:
         raise ValueError("No overlapping y and yhat rows to evaluate.")
     return regression_report(filtered["y"], filtered["yhat"])
 
-
-
-def summarize_cross_validation(cv_frame: pd.DataFrame) -> pd.DataFrame:
-    """
-    Placeholder for Prophet cross-validation diagnostics.
-
-    TODO: integrate prophet.diagnostics.cross_validation and performance_metrics
-    once the evaluation workflow is finalized.
-    """
-    return cv_frame
